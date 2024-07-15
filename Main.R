@@ -4,3 +4,4 @@ EATest<-read.csv("test.csv")
 View(EATrain)
 summary(EATrain)
 
+

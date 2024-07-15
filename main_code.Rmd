@@ -8,9 +8,30 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
+
+# Install and load necessary libraries
+if (!requireNamespace("caret", quietly = TRUE)) {
+  install.packages("caret")
+}
+if (!requireNamespace("skimr", quietly = TRUE)) {
+  install.packages("skimr")
+}
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+if (!requireNamespace("janitor", quietly = TRUE)) {
+  install.packages("janitor")
+}
+if (!requireNamespace("themis", quietly = TRUE)) {
+  install.packages("themis")
+}
+
+library(caret)
+library(themis)
 library(skimr)
 library(tidyverse)
 library(janitor)
+library(dplyr)
 
 # Load the datasets
 train <- read_csv("data/train.csv")
@@ -27,17 +48,55 @@ skim(train)
 ```
 
 ```{r}
+
+
+# # Check for missing values -----------> do old code for mv
+# train_missing <- train %>% summarise_all(~sum(is.na(.)))
+# test_missing <- test %>% summarise_all(~sum(is.na(.)))
+# 
+# # Print missing values
+# print(train_missing)
+# print(test_missing)
+
+# Handle missing values
+# For numeric columns, fill missing values with median
+fill_missing_numeric <- function(df) {
+  df %>% mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+}
+
+# For categorical columns, fill missing values with mode
+fill_missing_categorical <- function(df) {
+  df %>% mutate(across(where(is.character), ~ifelse(is.na(.), names(sort(table(.), decreasing = TRUE))[1], .)))
+}
+
+# Apply the functions to train and test data
+train <- train %>% fill_missing_numeric() %>% fill_missing_categorical()
+test <- test %>% fill_missing_numeric() %>% fill_missing_categorical()
+
+# Check for remaining missing values
+sum(is.na(train))
+sum(is.na(test))
+
+
+```
+##Data Cleaning (--> do Duplicate removal [wanted?], Correct Inconcistencies)
+```{r}
 # Clean column names
 train <- train %>% clean_names()
 test <- test %>% clean_names()
 
-# Check for missing values
-train_missing <- train %>% summarise_all(~sum(is.na(.)))
-test_missing <- test %>% summarise_all(~sum(is.na(.)))
+# Handle duplicates
+train <- train %>% distinct()
+test <- test %>% distinct()
 
-# Print missing values
-print(train_missing)
-print(test_missing)
+# Correct inconsistencies --> do more if wanted??
+# Standardize categorical levels
+train <- train %>% mutate(job_role = str_to_lower(job_role))
+test <- test %>% mutate(job_role = str_to_lower(job_role))
+
+# Verify corrections
+unique(train$job_role)
+unique(test$job_role)
 
 ```
 ## Outlier detection and treatment  
@@ -148,6 +207,7 @@ file.exists("data/processed_train.csv")
 file.exists("data/processed_test.csv")
 
 ```
+
 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
