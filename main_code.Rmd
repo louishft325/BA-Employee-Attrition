@@ -27,8 +27,6 @@ skim(train)
 ```
 
 ```{r}
-# Load necessary libraries
-
 # Clean column names
 train <- train %>% clean_names()
 test <- test %>% clean_names()
@@ -41,53 +39,116 @@ test_missing <- test %>% summarise_all(~sum(is.na(.)))
 print(train_missing)
 print(test_missing)
 
-# Basic data preprocessing
-# Handling missing values - for simplicity, we'll fill NAs with the median for numerical and mode for categorical variables
-train <- train %>%
-  mutate_if(is.numeric, ~ifelse(is.na(.), median(., na.rm = TRUE), .)) %>%
-  mutate_if(is.character, ~ifelse(is.na(.), Mode(.), .))
-
-test <- test %>%
-  mutate_if(is.numeric, ~ifelse(is.na(.), median(., na.rm = TRUE), .)) %>%
-  mutate_if(is.character, ~ifelse(is.na(.), Mode(.), .))
-
-# Function to calculate the mode
-Mode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(tabulate(match(x, ux)))]
+```
+## Outlier detection and treatment  
+Using IQR to detect and cap outliers
+```{r}
+cap_outliers <- function(x) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  caps <- quantile(x, probs=c(.05, .95), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  lower_bound <- qnt[1] - H
+  upper_bound <- qnt[2] + H
+  x[x < lower_bound] <- caps[1]
+  x[x > upper_bound] <- caps[2]
+  return(x)
 }
 
-# Feature Engineering: Create new features if necessary (example shown here)
-# Let's create a feature based on the age of the employee
-train <- train %>%
-  mutate(age_group = case_when(
-    age < 30 ~ "Young",
-    age >= 30 & age < 50 ~ "Middle-aged",
-    age >= 50 ~ "Senior"
-  ))
+# Function to count outliers
+count_outliers <- function(x) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  sum(x < (qnt[1] - H)) + sum(x > (qnt[2] + H))
+}
 
-test <- test %>%
-  mutate(age_group = case_when(
-    age < 30 ~ "Young",
-    age >= 30 & age < 50 ~ "Middle-aged",
-    age >= 50 ~ "Senior"
-  ))
+# Apply the functions to train and test data
+train_outlier_counts <- train %>% select(where(is.numeric)) %>% map_int(count_outliers)
+test_outlier_counts <- test %>% select(where(is.numeric)) %>% map_int(count_outliers)
 
-# Convert new categorical features to factor
-train <- train %>%
-  mutate(across(where(is.character), as.factor))
+# Cap outliers
+train <- train %>% mutate_if(is.numeric, cap_outliers)
+test <- test %>% mutate_if(is.numeric, cap_outliers)
 
-test <- test %>%
-  mutate(across(where(is.character), as.factor))
+# Display the number of outliers detected and capped
+print(train_outlier_counts)
+print(test_outlier_counts)
 
-# Final check of the processed data
-glimpse(train)
-glimpse(test)
-
-# Save the cleaned data for future use
-write_csv(train, "/mnt/data/processed_train.csv")
-write_csv(test, "/mnt/data/processed_test.csv")
 ```
+
+
+```{r}
+# Encode categorical variables using one-hot encoding
+train <- train %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(across(where(is.factor), as.integer))
+
+test <- test %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(across(where(is.factor), as.integer))
+
+# Display structure after encoding
+str(train)
+str(test)
+
+```
+```{r}
+# Normalize numerical features
+num_cols <- train %>% select(where(is.numeric)) %>% colnames()
+
+train[num_cols] <- scale(train[num_cols])
+test[num_cols] <- scale(test[num_cols])
+
+# Display summary after normalization
+summary(train[num_cols])
+summary(test[num_cols])
+```
+
+
+```{r}
+library(themis)
+# Ensure the target variable is a factor
+train <- train %>%
+  mutate(attrition = as.factor(attrition))
+
+# Check for imbalanced data in the target variable
+table(train$attrition)
+
+# Handle imbalanced data using SMOTE from themis package
+rec <- recipe(attrition ~ ., data = train) %>%
+  step_smote(attrition)
+
+train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
+
+# Display summary of balanced data
+table(train_balanced$attrition)
+
+```
+```{r}
+# Remove redundant features
+# Using nearZeroVar function from caret package to identify near zero variance predictors
+nzv <- nearZeroVar(train_balanced, saveMetrics = TRUE)
+nzv <- rownames(nzv[nzv$nzv == TRUE,])
+
+train_balanced <- train_balanced %>% select(-all_of(nzv))
+test <- test %>% select(-all_of(nzv))
+
+# Display structure after removing redundant features
+str(train_balanced)
+str(test)
+
+```
+
+```{r}
+# Save the cleaned data for future use
+write_csv(train_balanced, "data/processed_train.csv")
+write_csv(test, "data/processed_test.csv")
+
+# Confirm files are saved
+file.exists("data/processed_train.csv")
+file.exists("data/processed_test.csv")
+
+```
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
