@@ -50,36 +50,37 @@ skim(train)
 ```{r}
 
 
-# # Check for missing values -----------> do old code for mv
-# train_missing <- train %>% summarise_all(~sum(is.na(.)))
-# test_missing <- test %>% summarise_all(~sum(is.na(.)))
+# Check for missing values
+train_missing <- train %>% summarise_all(~sum(is.na(.)))
+test_missing <- test %>% summarise_all(~sum(is.na(.)))
+ 
+# Print missing values
+print(train_missing)
+print(test_missing)
+```
+We found that our dataset has no missing values at all. However to be future proofed, we prepared some handling for missing values below:
+```{r}
+# # Handle missing values
+# # For numeric columns, fill missing values with median
+# fill_missing_numeric <- function(df) {
+#   df %>% mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+# }
 # 
-# # Print missing values
-# print(train_missing)
-# print(test_missing)
-
-# Handle missing values
-# For numeric columns, fill missing values with median
-fill_missing_numeric <- function(df) {
-  df %>% mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
-}
-
-# For categorical columns, fill missing values with mode
-fill_missing_categorical <- function(df) {
-  df %>% mutate(across(where(is.character), ~ifelse(is.na(.), names(sort(table(.), decreasing = TRUE))[1], .)))
-}
-
-# Apply the functions to train and test data
-train <- train %>% fill_missing_numeric() %>% fill_missing_categorical()
-test <- test %>% fill_missing_numeric() %>% fill_missing_categorical()
-
-# Check for remaining missing values
-sum(is.na(train))
-sum(is.na(test))
-
+# # For categorical columns, fill missing values with mode
+# fill_missing_categorical <- function(df) {
+#   df %>% mutate(across(where(is.character), ~ifelse(is.na(.), names(sort(table(.), decreasing = TRUE))[1], .)))
+# }
+# 
+# # Apply the functions to train and test data
+# train <- train %>% fill_missing_numeric() %>% fill_missing_categorical()
+# test <- test %>% fill_missing_numeric() %>% fill_missing_categorical()
+# 
+# # Check for remaining missing values
+# sum(is.na(train))
+# sum(is.na(test))
 
 ```
-##Data Cleaning (--> do Duplicate removal [wanted?], Correct Inconcistencies)
+##Data Cleaning 
 ```{r}
 # Clean column names
 train <- train %>% clean_names()
@@ -89,10 +90,10 @@ test <- test %>% clean_names()
 train <- train %>% distinct()
 test <- test %>% distinct()
 
-# Correct inconsistencies --> do more if wanted??
-# Standardize categorical levels
-train <- train %>% mutate(job_role = str_to_lower(job_role))
-test <- test %>% mutate(job_role = str_to_lower(job_role))
+# # Correct inconsistencies --> do more if wanted?? -Dont think we need this for now. 
+# # Standardize categorical levels
+# train <- train %>% mutate(job_role = str_to_lower(job_role))
+# test <- test %>% mutate(job_role = str_to_lower(job_role))
 
 # Verify corrections
 unique(train$job_role)
@@ -182,8 +183,10 @@ train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
 table(train_balanced$attrition)
 
 ```
+
+
 ```{r}
-# Remove redundant features
+# Remove redundant features - check later if we want this
 # Using nearZeroVar function from caret package to identify near zero variance predictors
 nzv <- nearZeroVar(train_balanced, saveMetrics = TRUE)
 nzv <- rownames(nzv[nzv$nzv == TRUE,])
