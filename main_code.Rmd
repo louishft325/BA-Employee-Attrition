@@ -104,7 +104,7 @@ unique(test$job_role)
 
 ```
 ## Outlier detection and treatment  
-Using IQR to detect and cap outliers
+Using IQR to detect and cap outliers  #TODO: Graphc and optimizing
 ```{r}
 cap_outliers <- function(x) {
   qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
@@ -202,7 +202,7 @@ str(test)
 
 ```
 
-# Check multicollinearity using Variance Inflation Factor (VIF)
+# Check multicollinearity using Variance Inflation Factor (VIF) #TODO: Output of features to remove (and manual removal??)
 ```{r}
 library(car)
 library(dplyr) 
@@ -238,7 +238,6 @@ write_csv(train_balanced, "data/processed_train.csv")
 write_csv(test, "data/processed_test.csv")
 
 ```
-
 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
