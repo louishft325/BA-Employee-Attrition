@@ -1,0 +1,388 @@
+---
+title: "Students-Perfomance E-Business"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: true
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+
+# Install and load necessary libraries
+if (!requireNamespace("caret", quietly = TRUE)) {
+  install.packages("caret")
+}
+if (!requireNamespace("skimr", quietly = TRUE)) {
+  install.packages("skimr")
+}
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+if (!requireNamespace("janitor", quietly = TRUE)) {
+  install.packages("janitor")
+}
+if (!requireNamespace("themis", quietly = TRUE)) {
+  install.packages("themis")
+}
+
+library(caret)
+library(themis)
+library(skimr)
+library(tidyverse)
+library(janitor)
+library(dplyr)
+
+# Load the datasets
+train <- read_csv("data/train.csv")
+test <- read_csv("data/test.csv")
+
+# Display the first few rows of the train dataset
+head(train)
+
+# Get a summary of the dataset
+glimpse(train)
+
+# Skim the dataset for a comprehensive overview
+skim(train)
+```
+
+```{r}
+
+
+# Check for missing values
+train_missing <- train %>% summarise_all(~sum(is.na(.)))
+test_missing <- test %>% summarise_all(~sum(is.na(.)))
+ 
+# Print missing values
+print(train_missing)
+print(test_missing)
+```
+We found that our dataset has no missing values at all. However to be future proofed, we prepared some handling for missing values below:
+```{r}
+# # Handle missing values
+# # For numeric columns, fill missing values with median
+# fill_missing_numeric <- function(df) {
+#   df %>% mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+# }
+# 
+# # For categorical columns, fill missing values with mode
+# fill_missing_categorical <- function(df) {
+#   df %>% mutate(across(where(is.character), ~ifelse(is.na(.), names(sort(table(.), decreasing = TRUE))[1], .)))
+# }
+# 
+# # Apply the functions to train and test data
+# train <- train %>% fill_missing_numeric() %>% fill_missing_categorical()
+# test <- test %>% fill_missing_numeric() %>% fill_missing_categorical()
+# 
+# # Check for remaining missing values
+# sum(is.na(train))
+# sum(is.na(test))
+
+```
+##Data Cleaning 
+```{r}
+# Clean column names
+train <- train %>% clean_names()
+test <- test %>% clean_names()
+
+# Handle duplicates
+train <- train %>% distinct()
+test <- test %>% distinct()
+
+# # Correct inconsistencies --> do more if wanted?? -Dont think we need this for now. 
+# # Standardize categorical levels
+# train <- train %>% mutate(job_role = str_to_lower(job_role))
+# test <- test %>% mutate(job_role = str_to_lower(job_role))
+
+# Verify corrections
+unique(train$job_role)
+unique(test$job_role)
+
+```
+## Outlier detection and treatment  
+Using IQR to detect and cap outliers  #TODO: Graphc and optimizing
+```{r}
+cap_outliers <- function(x) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  caps <- quantile(x, probs=c(.05, .95), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  lower_bound <- qnt[1] - H
+  upper_bound <- qnt[2] + H
+  x[x < lower_bound] <- caps[1]
+  x[x > upper_bound] <- caps[2]
+  return(x)
+}
+
+# Function to count outliers
+count_outliers <- function(x) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  sum(x < (qnt[1] - H)) + sum(x > (qnt[2] + H))
+}
+
+# Apply the functions to train and test data
+train_outlier_counts <- train %>% select(where(is.numeric)) %>% map_int(count_outliers)
+
+# Cap outliers
+train <- train %>% mutate_if(is.numeric, cap_outliers)
+
+# Display the number of outliers detected and capped
+print(train_outlier_counts)
+
+```
+
+
+```{r}
+# Encode categorical variables using one-hot encoding
+train <- train %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(across(where(is.factor), as.integer))
+
+test <- test %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(across(where(is.factor), as.integer))
+
+# Display structure after encoding
+str(train)
+str(test)
+
+```
+```{r}
+# Normalize numerical features
+num_cols <- train %>% select(where(is.numeric), -attrition) %>% colnames()
+# num_cols <- train %>% select(where(is.numeric)) %>% colnames()
+
+
+train[num_cols] <- scale(train[num_cols])
+test[num_cols] <- scale(test[num_cols])
+
+# Convert target variable to factor
+train <- train %>%
+  mutate(attrition = as.factor(attrition))
+# test <- test %>%
+#   mutate(attrition = as.factor(attrition))
+
+# Display summary after normalization
+summary(train[num_cols])
+summary(test[num_cols])
+```
+
+
+```{r}
+library(themis)
+# Check for imbalanced data in the target variable
+table(train$attrition)
+
+# Handle imbalanced data using SMOTE from themis package
+rec <- recipe(attrition ~ ., data = train) %>%
+  step_smote(attrition)
+
+train_balanced = train #TODO: ROMOVE 
+# train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
+
+# Display summary of balanced data
+table(train_balanced$attrition)
+
+```
+
+# Remove redundant features - check later if we want this
+```{r}
+# Using nearZeroVar function from caret package to identify near zero variance predictors
+nzv <- nearZeroVar(train_balanced, saveMetrics = TRUE)
+nzv <- rownames(nzv[nzv$nzv == TRUE,])
+
+train_balanced <- train_balanced %>% select(-all_of(nzv))
+test <- test %>% select(-all_of(nzv))
+
+# Display structure after removing redundant features
+str(train_balanced)
+str(test)
+
+```
+
+# Check multicollinearity using Variance Inflation Factor (VIF) #TODO: Output of features to remove (and manual removal??)
+```{r}
+library(car)
+library(dplyr) 
+# Check multicollinearity using Variance Inflation Factor (VIF)
+# Ensure all predictor variables are numeric
+train_balanced <- train_balanced %>%
+  mutate(across(where(is.factor), as.numeric))
+
+# Select only numeric columns for VIF calculation
+num_vars <- train_balanced %>% select(where(is.numeric)) %>% colnames()
+
+# Calculate VIF for each numeric feature
+vif_values <- vif(lm(attrition ~ ., data = train_balanced))
+
+# Print VIF values
+print(vif_values)
+
+# Remove features with VIF greater than a threshold (e.g., 5 or 10)
+high_vif <- names(vif_values[vif_values > 5])
+train_balanced <- train_balanced %>% select(-all_of(high_vif))
+test <- test %>% select(-all_of(high_vif))
+
+# Display structure after removing high VIF features
+str(train_balanced)
+str(test)
+
+```
+
+
+```{r}
+# Save the cleaned data for future use
+write_csv(train_balanced, "data/processed_train.csv")
+write_csv(test, "data/processed_test.csv")
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+
+# Convert target variable to factor with valid R variable names as levels
+train_balanced$attrition <- factor(train_balanced$attrition, levels = c(1, 2), labels = c("No", "Yes"))
+test$attrition <- factor(test$attrition, levels = c(1, 2), labels = c("No", "Yes"))
+
+```
+
+
+# Model Building and Comparison
+
+```{r}
+library(caret)
+library(pROC)
+library(doParallel)
+
+# Convert target variable to factor
+train_balanced$attrition <- as.factor(train_balanced$attrition)
+test$attrition <- as.factor(test$attrition)
+
+# Register parallel backend
+registerDoParallel(detectCores())
+
+# Define control for cross-validation
+train_control <- trainControl(
+method = "cv",
+number = 5,
+classProbs = TRUE,
+summaryFunction = twoClassSummary,
+allowParallel = TRUE
+)
+
+# Train Logistic Regression model
+set.seed(123)
+model_logistic <- train(attrition ~ ., data = train_balanced,
+method = "glm",
+family = "binomial",
+trControl = train_control,
+metric = "ROC"
+)
+
+# Train Decision Tree model
+set.seed(123)
+model_tree <- train(attrition ~ ., data = train_balanced,
+method = "rpart",
+trControl = train_control,
+metric = "ROC"
+)
+
+# Train Random Forest model
+set.seed(123)
+model_rf <- train(attrition ~ ., data = train_balanced,
+method = "rf",
+trControl = train_control,
+metric = "ROC")
+
+# Train SVM model
+set.seed(123)
+model_svm <- train(attrition ~ ., data = train_balanced,
+method = "svmRadial",
+trControl = train_control,
+metric = "ROC")
+
+
+# Evaluate each model on the test set
+evaluate_model <- function(model, data) {
+predictions <- predict(model, newdata = data)
+prob_predictions <- predict(model, newdata = data, type = "prob")
+roc_curve <- roc(data$attrition, prob_predictions[, "Yes"])
+auc <- auc(roc_curve)
+
+confusion <- confusionMatrix(predictions, data$attrition, positive = "Yes")
+return(list(confusion = confusion, auc = auc))
+}
+
+# Store the evaluation results
+results <- list(
+logistic = evaluate_model(model_logistic, test),
+tree = evaluate_model(model_tree, test),
+rf = evaluate_model(model_rf, test),
+svm = evaluate_model(model_svm, test)
+)
+
+# Print formatted AUC values for each model
+auc_values <- sapply(results, function(res) res$auc)
+cat("Model AUC Values:\n")
+print(auc_values)
+
+# Print key metrics from the confusion matrices for each model
+cat("\nConfusion Matrix Metrics:\n")
+# Iterating over names in results that hold models' data
+sapply(names(results), function(model_name) {
+res <- results[[model_name]]
+cm <- res$confusion
+tp <- cm$table[2, 2] # True Positives
+tn <- cm$table[1, 1] # True Negatives
+fp <- cm$table[1, 2] # False Positives
+fn <- cm$table[2, 1] # False Negatives
+sensitivity <- cm$byClass['Sensitivity']
+specificity <- cm$byClass['Specificity']
+accuracy <- cm$overall['Accuracy']
+
+cat("\nModel:", model_name)
+cat(sprintf("\n Accuracy: %.2f", accuracy))
+cat(sprintf("\n Sensitivity (Recall): %.2f", sensitivity))
+cat(sprintf("\n Specificity: %.2f", specificity))
+cat("\n")
+})
+
+# Selecting and detailing the best model based on AUC
+best_model_name <- names(which.max(auc_values))
+best_model <- models[[best_model_name]]
+cat("\nBest model based on AUC is:", best_model_name, "\n")
+
+
+# Save the best model
+saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
+```
+# Summary of the best model
+```{r}
+print(summary(best_model))
+```
+
+### Explanation
+1. *Model Training*: We train four models: Logistic Regression, Decision Tree, Random Forest, and SVM, each using cross-validation (5-fold).
+2. *Model Evaluation**: Each model is evaluated on the `test` set using confusion matrices and the AUC (Area Under the Curve) metric.
+3. *AUC Calculation*: We calculate the ROC curve and extract the AUC value for each model to gauge their performance.
+4. **Model Comparison**: We compare the AUC values to select the best model.
+5. **Model Saving**: We save the best model for future use based on its AUC performance.
+
+This method ensures that you are comparing the models on a robust metric (AUC) and using the test set for final evaluation to avoid data leakage and ensure reliable performance estimates.
+
+If you have any further specifications or tweaks to be made, please feel free to let me know!
+
+
+
+
+
