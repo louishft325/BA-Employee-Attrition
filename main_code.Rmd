@@ -1,6 +1,9 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Students-Perfomance E-Business"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: true
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
@@ -166,7 +169,7 @@ summary(test[num_cols])
 
 ```{r}
 library(themis)
-# Ensure the target variable is a factor
+# Convert target variable to factor
 train <- train %>%
   mutate(attrition = as.factor(attrition))
 
@@ -184,9 +187,8 @@ table(train_balanced$attrition)
 
 ```
 
-
-```{r}
 # Remove redundant features - check later if we want this
+```{r}
 # Using nearZeroVar function from caret package to identify near zero variance predictors
 nzv <- nearZeroVar(train_balanced, saveMetrics = TRUE)
 nzv <- rownames(nzv[nzv$nzv == TRUE,])
@@ -200,14 +202,40 @@ str(test)
 
 ```
 
+# Check multicollinearity using Variance Inflation Factor (VIF)
+```{r}
+library(car)
+library(dplyr) 
+# Check multicollinearity using Variance Inflation Factor (VIF)
+# Ensure all predictor variables are numeric
+train_balanced <- train_balanced %>%
+  mutate(across(where(is.factor), as.numeric))
+
+# Select only numeric columns for VIF calculation
+num_vars <- train_balanced %>% select(where(is.numeric)) %>% colnames()
+
+# Calculate VIF for each numeric feature
+vif_values <- vif(lm(attrition ~ ., data = train_balanced))
+
+# Print VIF values
+print(vif_values)
+
+# Remove features with VIF greater than a threshold (e.g., 5 or 10)
+high_vif <- names(vif_values[vif_values > 5])
+train_balanced <- train_balanced %>% select(-all_of(high_vif))
+test <- test %>% select(-all_of(high_vif))
+
+# Display structure after removing high VIF features
+str(train_balanced)
+str(test)
+
+```
+
+
 ```{r}
 # Save the cleaned data for future use
 write_csv(train_balanced, "data/processed_train.csv")
 write_csv(test, "data/processed_test.csv")
-
-# Confirm files are saved
-file.exists("data/processed_train.csv")
-file.exists("data/processed_test.csv")
 
 ```
 
