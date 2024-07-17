@@ -256,13 +256,13 @@ test$attrition <- factor(test$attrition, levels = c(1, 2), labels = c("No", "Yes
 
 ```
 
-
-# Model Building and Comparison
-
+# New Model incl hyperparamters
 ```{r}
 library(caret)
 library(pROC)
 library(doParallel)
+library(gbm)
+library(e1071)
 
 # Convert target variable to factor
 train_balanced$attrition <- as.factor(train_balanced$attrition)
@@ -281,54 +281,196 @@ allowParallel = TRUE
 )
 
 # Train Logistic Regression model
+model_logistic <- "placeholder"
+
+# Train kNN model
+model_knn <- "placeholder"
+
+# Train Decision Tree model with hyperparameter tuning
 set.seed(123)
-model_logistic <- train(attrition ~ ., data = train_balanced,
-method = "glm",
-family = "binomial",
-trControl = train_control,
-metric = "ROC"
+tune_grid_tree <- expand.grid(
+cp = seq(0.01, 0.1, by = 0.01) # Control overfitting by tuning the complexity parameter
 )
 
-# Train Decision Tree model
-set.seed(123)
-model_tree <- train(attrition ~ ., data = train_balanced,
+model_tree <- train(
+attrition ~ .,
+data = train_balanced,
 method = "rpart",
 trControl = train_control,
+tuneGrid = tune_grid_tree,
 metric = "ROC"
 )
 
+# Display the best parameters for the tree model
+cat("Best parameters for Decision Tree model:\n")
+print(model_tree$bestTune)
+
 # Train Random Forest model
-set.seed(123)
-model_rf <- train(attrition ~ ., data = train_balanced,
-method = "rf",
-trControl = train_control,
-metric = "ROC")
+model_rf <- "placeholder"
 
-# Train SVM model
-set.seed(123)
-model_svm <- train(attrition ~ ., data = train_balanced,
-method = "svmRadial",
-trControl = train_control,
-metric = "ROC")
+# Train Gradient Boosting model
+model_gbm <- "placeholder"
 
+# Train Naive Bayes model
+model_nb <- "placeholder"
 
-# Evaluate each model on the test set
+# Evaluate each model on the test set and save the model
 evaluate_model <- function(model, data) {
-predictions <- predict(model, newdata = data)
-prob_predictions <- predict(model, newdata = data, type = "prob")
+if (is.character(model)) {
+return(list(confusion = NULL, auc = NULL, model = NULL))
+}
+
+predictions <- predict(model, newdata=data)
+prob_predictions <- predict(model, newdata=data, type = "prob")
 roc_curve <- roc(data$attrition, prob_predictions[, "Yes"])
 auc <- auc(roc_curve)
-
 confusion <- confusionMatrix(predictions, data$attrition, positive = "Yes")
-return(list(confusion = confusion, auc = auc))
+
+return(list(confusion = confusion, auc = auc, model = model))
 }
 
 # Store the evaluation results
 results <- list(
 logistic = evaluate_model(model_logistic, test),
+knn = evaluate_model(model_knn, test),
 tree = evaluate_model(model_tree, test),
 rf = evaluate_model(model_rf, test),
-svm = evaluate_model(model_svm, test)
+gbm = evaluate_model(model_gbm, test),
+nb = evaluate_model(model_nb, test)
+)
+
+# Print formatted AUC values for each model
+auc_values <- sapply(results, function(res) if (!is.null(res$auc)) res$auc else NA_real_)
+cat("Model AUC Values:\n")
+print(auc_values)
+
+# Print key metrics from the confusion matrices for each model
+cat("\nConfusion Matrix Metrics:\n")
+sapply(names(results), function(model_name) {
+res <- results[[model_name]]
+if (!is.null(res$confusion)) {
+cm <- res$confusion
+tp <- cm$table[2, 2] # True Positives
+tn <- cm$table[1, 1] # True Negatives
+fp <- cm$table[1, 2] # False Positives
+fn <- cm$table[2, 1] # False Negatives
+sensitivity <- cm$byClass['Sensitivity']
+specificity <- cm$byClass['Specificity']
+accuracy <- cm$overall['Accuracy']
+
+cat("\nModel:", model_name)
+cat(sprintf("\n Accuracy: %.2f", accuracy))
+cat(sprintf("\n Sensitivity (Recall): %.2f", sensitivity))
+cat(sprintf("\n Specificity: %.2f", specificity))
+cat("\n")
+}
+})
+
+# Selecting and detailing the best model based on AUC
+best_model_name <- names(which.max(auc_values))
+best_model <- results[[best_model_name]]$model
+cat("\nBest model based on AUC is:", best_model_name, "\n")
+
+# Save the best model
+saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
+ ##TODO: run this :)
+```
+
+
+
+
+
+
+
+# Model Building and Comparison
+
+```{r}
+library(caret)
+library(pROC)
+library(doParallel)
+library(gbm)
+library(e1071)
+
+# Convert target variable to factor
+train_balanced$attrition <- as.factor(train_balanced$attrition)
+test$attrition <- as.factor(test$attrition)
+
+# Register parallel backend
+registerDoParallel(detectCores())
+
+# Define control for cross-validation
+train_control <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  allowParallel = TRUE
+)
+
+# Train Logistic Regression model
+set.seed(123)
+model_logistic <- train(attrition ~ ., data = train_balanced,
+                        method = "glm",
+                        family = "binomial",
+                        trControl = train_control,
+                        metric = "ROC")
+
+# Train kNN model
+set.seed(123)
+model_knn <- train(attrition ~ ., data = train_balanced,
+                   method = "knn",
+                   trControl = train_control,
+                   tuneLength = 10,
+                   metric = "ROC")
+
+# Train Decision Tree model
+set.seed(123)
+model_tree <- train(attrition ~ ., data = train_balanced,
+                    method = "rpart",
+                    trControl = train_control,
+                    metric = "ROC")
+
+# Train Random Forest model
+set.seed(123)
+model_rf <- train(attrition ~ ., data = train_balanced,
+                  method = "rf",
+                  trControl = train_control,
+                  metric = "ROC")
+
+# Train Gradient Boosting model
+set.seed(123)
+model_gbm <- train(attrition ~ ., data = train_balanced,
+                   method = "gbm",
+                   trControl = train_control,
+                   metric = "ROC",
+                   verbose = FALSE)
+
+# Train Naive Bayes model
+set.seed(123)
+model_nb <- train(attrition ~ ., data = train_balanced,
+                  method = "nb",
+                  trControl = train_control,
+                  metric = "ROC")
+
+# Evaluate each model on the test set and save the model
+evaluate_model <- function(model, data) {
+predictions <- predict(model, newdata = data)
+prob_predictions <- predict(model, newdata = data, type = "prob")
+roc_curve <- roc(data$attrition, prob_predictions[, "Yes"])
+auc <- auc(roc_curve)
+confusion <- confusionMatrix(predictions, data$attrition, positive = "Yes")
+
+return(list(confusion = confusion, auc = auc, model = model))
+}
+
+# Store the evaluation results
+results <- list(
+logistic = evaluate_model(model_logistic, test),
+knn = evaluate_model(model_knn, test),
+tree = evaluate_model(model_tree, test),
+rf = evaluate_model(model_rf, test),
+gbm = evaluate_model(model_gbm, test),
+nb = evaluate_model(model_nb, test)
 )
 
 # Print formatted AUC values for each model
@@ -338,7 +480,6 @@ print(auc_values)
 
 # Print key metrics from the confusion matrices for each model
 cat("\nConfusion Matrix Metrics:\n")
-# Iterating over names in results that hold models' data
 sapply(names(results), function(model_name) {
 res <- results[[model_name]]
 cm <- res$confusion
@@ -359,16 +500,20 @@ cat("\n")
 
 # Selecting and detailing the best model based on AUC
 best_model_name <- names(which.max(auc_values))
-best_model <- models[[best_model_name]]
+best_model <- results[[best_model_name]]$model
 cat("\nBest model based on AUC is:", best_model_name, "\n")
-
 
 # Save the best model
 saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
+
 ```
+
+
 # Summary of the best model
+
 ```{r}
 print(summary(best_model))
+
 ```
 
 ### Explanation
