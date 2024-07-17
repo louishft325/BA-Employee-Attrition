@@ -46,6 +46,10 @@ library(ggplot2)
 train <- read.csv("data/train.csv", stringsAsFactors = TRUE)
 test <- read.csv("data/test.csv", stringsAsFactors = TRUE)
 
+# Sample 10% of the train dataset #TODO: Remove
+set.seed(123) # Setting a seed for reproducibility
+train <- train %>% sample_frac(0.05)
+
 # Display the first few rows of the train dataset
 head(train)
 
@@ -438,8 +442,6 @@ ggplot(test, aes(x = as.factor(Attrition), y = Age)) +
 ```
 
 ```{r}
-
-
 # Check for missing values
 train_missing <- train %>% summarise_all(~sum(is.na(.)))
 test_missing <- test %>% summarise_all(~sum(is.na(.)))
@@ -578,7 +580,7 @@ print(test_outlier_counts)
 ```
 
 ```{r}
-# Check the structure of the dataset to confirm column names
+# Check the structure of the dataset to confirm column names #TODO: Do we need this?
 str(train)
 
 # Print the first few rows of the dataset to verify column names
@@ -603,10 +605,16 @@ str(test)
 
 ```{r}
 # Normalize numerical features
-num_cols <- train %>% select(where(is.numeric)) %>% colnames()
+# num_cols <- train %>% select(where(is.numeric)) %>% colnames()
+num_cols <- train %>% select(where(is.numeric), -attrition) %>% colnames()
+
 
 train[num_cols] <- scale(train[num_cols])
 test[num_cols] <- scale(test[num_cols])
+
+# Convert target variable to factor
+train <- train %>%
+  mutate(attrition = as.factor(attrition))
 
 # Display summary after normalization
 summary(train[num_cols])
@@ -615,10 +623,6 @@ summary(test[num_cols])
 
 ```{r}
 library(themis)
-# Convert target variable to factor
-train <- train %>%
-  mutate(Attrition = as.factor(Attrition))
-
 # Check for imbalanced data in the target variable
 table(train$attrition)
 
@@ -626,14 +630,15 @@ table(train$attrition)
 rec <- recipe(Attrition ~ ., data = train) %>%
   step_smote(Attrition)
 
-train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
+train_balanced = train #TODO: ROMOVE 
+# train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
 
 # Display summary of balanced data
 table(train_balanced$Attrition)
 
 ```
 
-# Remove redundant features - check later if we want this
+# Remove redundant features - check later if we want this #TODO: Remove
 
 ```{r}
 # # Using nearZeroVar function from caret package to identify near zero variance predictors

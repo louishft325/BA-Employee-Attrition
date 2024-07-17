@@ -259,153 +259,6 @@ test$attrition <- factor(test$attrition, levels = c(1, 2), labels = c("No", "Yes
 
 ```
 
-# New Model incl hyperparamters
-```{r}
-# library(caret)
-# library(pROC)
-# library(doParallel)
-# library(gbm)
-# library(e1071)
-# 
-# # Convert target variable to factor
-# train_balanced$attrition <- as.factor(train_balanced$attrition)
-# test$attrition <- as.factor(test$attrition)
-# 
-# # Register parallel backend
-# registerDoParallel(detectCores())
-# 
-# # Define control for cross-validation
-# train_control <- trainControl(
-# method = "cv",
-# number = 5,
-# classProbs = TRUE,
-# summaryFunction = twoClassSummary,
-# allowParallel = TRUE
-# )
-# 
-# # Hyperparameter selection for Logistic Regression model
-# tune_grid_logistic <- expand.grid()
-# 
-# # Train Logistic Regression model
-# model_logistic <- train(attrition ~ ., data = train_balanced,
-# method = "glm",
-# family = "binomial",
-# trControl = train_control,
-# metric = "ROC")
-# 
-# # Hyperparameter selection for kNN model
-# tune_grid_knn <- expand.grid(k = seq(3, 21, by = 2))
-# 
-# # Train kNN model
-# model_knn <- train(attrition ~ ., data = train_balanced,
-# method = "knn",
-# trControl = train_control,
-# tuneGrid = tune_grid_knn,
-# metric = "ROC")
-# 
-# # Hyperparameter selection for Decision Tree model
-# tune_grid_tree <- expand.grid(cp = seq(0.01, 0.1, by = 0.01))
-# 
-# # Train Decision Tree model
-# set.seed(123)
-# model_tree <- train(attrition ~ ., data = train_balanced,
-# method = "rpart",
-# trControl = train_control,
-# tuneGrid = tune_grid_tree,
-# metric = "ROC")
-# 
-# # Hyperparameter selection for Random Forest model, added 'base::ceil' function to use the correct ceil in the global environment
-# # tune_grid_rf <- expand.grid(mtry = base::ceil(sqrt(ncol(train_balanced)-1)))
-# tune_grid_rf <- expand.grid(n.trees = c(50, 100, 150),
-# interaction.depth = c(1, 2, 3),
-# shrinkage = c(0.01, 0.1),
-# n.minobsinnode = c(5, 10))
-# 
-# # Train Random Forest model
-# model_rf <- train(attrition ~ ., data = train_balanced,
-# method = "rf",
-# trControl = train_control,
-# tuneGrid = tune_grid_rf,
-# metric = "ROC")
-# 
-# # Hyperparameter selection for Gradient Boosting model
-# tune_grid_gbm <- expand.grid(n.trees = c(50, 100, 150), interaction.depth = c(1, 3, 5), shrinkage = 0.1)
-# 
-# # Train Gradient Boosting model
-# model_gbm <- train(attrition ~ ., data = train_balanced,
-# method = "gbm",
-# trControl = train_control,
-# tuneGrid = tune_grid_gbm,
-# metric = "ROC",
-# verbose = FALSE)
-# 
-# # Evaluate each model on the test set and save the model
-# evaluate_model <- function(model, data) {
-# predictions <- predict(model, newdata = data)
-# prob_predictions <- predict(model, newdata = data, type = "prob")
-# roc_curve <- roc(data$attrition, prob_predictions[, "Yes"])
-# auc <- auc(roc_curve)
-# confusion <- confusionMatrix(predictions, data$attrition, positive = "Yes")
-# 
-# return(list(confusion = confusion, auc = auc, model = model))
-# }
-# 
-# # Hyperparameter selection for Naive Bayes model
-# tune_grid_nb <- expand.grid(fL=c(0, 1), usekernel=c(TRUE, FALSE), adjust=seq(0.5, 2, length.out=4))
-# 
-# # Train Naive Bayes model
-# model_nb <- train(attrition ~ ., data = train_balanced,
-# method = "nb",
-# trControl = train_control,
-# tuneGrid = tune_grid_nb,
-# metric = "ROC")
-# 
-# # Store the evaluation results
-# results <- list(
-# logistic = evaluate_model(model_logistic, test),
-# knn = evaluate_model(model_knn, test),
-# tree = evaluate_model(model_tree, test),
-# rf = evaluate_model(model_rf, test),
-# gbm = evaluate_model(model_gbm, test),
-# nb = evaluate_model(model_nb, test)
-# )
-# 
-# # Print formatted AUC values for each model
-# auc_values <- sapply(results, function(res) res$auc)
-# cat("Model AUC Values:\n")
-# print(auc_values)
-# 
-# # Print key metrics from the confusion matrices for each model
-# cat("\nConfusion Matrix Metrics:\n")
-# sapply(names(results), function(model_name) {
-# res <- results[[model_name]]
-# cm <- res$confusion
-# tp <- cm$table[2, 2] # True Positives
-# tn <- cm$table[1, 1] # True Negatives
-# fp <- cm$table[1, 2] # False Positives
-# fn <- cm$table[2, 1] # False Negatives
-# sensitivity <- cm$byClass['Sensitivity']
-# specificity <- cm$byClass['Specificity']
-# accuracy <- cm$overall['Accuracy']
-# 
-# cat("\nModel:", model_name)
-# cat(sprintf("\n Accuracy: %.2f", accuracy))
-# cat(sprintf("\n Sensitivity (Recall): %.2f", sensitivity))
-# cat(sprintf("\n Specificity: %.2f", specificity))
-# cat("\n")
-# })
-# 
-# # Selecting and detailing the best model based on AUC
-# best_model_name <- names(which.max(auc_values))
-# best_model <- results[[best_model_name]]$model
-# cat("\nBest model based on AUC is:", best_model_name, "\n")
-# 
-# # Save the best model
-# saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
-#  ##TODO: run this :)
-```
-
-
 
 
 # Model Building and Comparison
@@ -532,6 +385,9 @@ cat("\nBest model based on AUC is:", best_model_name, "\n")
 # Save the best model
 saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
 
+# --- Stop Parallel Processing ---
+stopCluster(cl)
+
 ```
 
 
@@ -555,10 +411,10 @@ library(ROCR)
 library(doParallel)
 library(pROC)
 
-# Setup parallel processing (for model training)
-num_cores <- detectCores() - 1
-cl <- makeCluster(num_cores)
-registerDoParallel(cl)
+# # Setup parallel processing (for model training)
+# num_cores <- detectCores() - 1
+# cl <- makeCluster(num_cores)
+# registerDoParallel(cl)
 
 # Common setup
 set.seed(123)
@@ -571,14 +427,13 @@ allowParallel = TRUE)
 # Function to find best features, train model, and plot feature importance
 feature_select_train_evaluate_plot <- function(model_method, model_name, rfe_control_functions) {
 
-feature_range <- seq(3, 4, by = 1)
+feature_range <- seq(3, 3, by = 1)
 best_feature_size <- NULL
 max_auc <- 0
 
 for (num_features in feature_range) {
 cat("Evaluating", model_name, "with", num_features, "features\n")
 
-# Disable parallel processing within rfe()
 control_rfe <- rfeControl(functions = rfe_control_functions,
 method = "cv",
 number = 10,
@@ -611,6 +466,7 @@ best_features <- selected_features
 }
 }
 
+if (model_method != "nb"){
 # --- Feature Importance Plot ---
 importance <- varImp(best_model, scale = FALSE)$importance
 importance <- importance[order(importance$Overall, decreasing = TRUE), , drop = FALSE]
@@ -624,9 +480,11 @@ main = paste("Feature Importance -", model_name),
 xlab = "Importance",
 col = "cornflowerblue")
 
+}
+
 cat("Best number of features for", model_name, ":", best_feature_size, "with AUC:", max_auc, "\n")
 
-return(list(best_model = best_model, best_features = best_feature_size, auc = max_auc))
+return(list(best_model = best_model, best_features = best_features, auc = max_auc, best_feature_size = best_feature_size))
 }
 
 # --- Model Training, Feature Selection, and Plotting ---
@@ -640,51 +498,107 @@ gradient_boosting_results <- feature_select_train_evaluate_plot("gbm", "Gradient
 # Random Forest
 random_forest_results <- feature_select_train_evaluate_plot("rf", "Random Forest", rfFuncs)
 
-# --- Stop Parallel Processing ---
-stopCluster(cl)
+# # --- Stop Parallel Processing ---
+# stopCluster(cl)
 
 # Print Final Results
 cat("\n\nFinal AUC Results Comparison:\n")
-cat(paste("Naive Bayes AUC:", naive_bayes_results$auc, "with", naive_bayes_results$best_features, "features\n"))
-cat(paste("Gradient Boosting AUC:", gradient_boosting_results$auc, "with", gradient_boosting_results$best_features, "features\n"))
-cat(paste("Random Forest AUC:", random_forest_results$auc, "with", random_forest_results$best_features, "features\n"))
+cat(paste("Naive Bayes AUC:", naive_bayes_results$auc, "with", naive_bayes_results$best_feature_size, "features\n"))
+cat(paste("Gradient Boosting AUC:", gradient_boosting_results$auc, "with", gradient_boosting_results$best_feature_size, "features\n"))
+cat(paste("Random Forest AUC:", random_forest_results$auc, "with", random_forest_results$best_feature_size, "features\n"))
 
 ```
+
+
+
+```{r ROC Curve}
+library(pROC)
+
+# Get predicted probabilities for the best models on the test set
+prob_nb <- predict(naive_bayes_results$best_model, newdata = test[, naive_bayes_results$best_features], type = "prob")[, "Yes"]
+# prob_nb <- predict(gradient_boosting_results$best_model, newdata = test[, gradient_boosting_results$best_features], type = "prob")[, "Yes"]
+prob_gbm <- predict(gradient_boosting_results$best_model, newdata = test[, gradient_boosting_results$best_features], type = "prob")[, "Yes"]
+prob_rf <- predict(random_forest_results$best_model, newdata = test[, random_forest_results$best_features], type = "prob")[, "Yes"]
+
+# Calculate ROC curves
+roc_nb <- roc(test$attrition, prob_nb)
+roc_gbm <- roc(test$attrition, prob_gbm)
+roc_rf <- roc(test$attrition, prob_rf)
+
+# Plot ROC curves
+plot(roc_nb, col = "blue", main = "ROC Curves for Top 3 Feature Selected Models", lty = 1)
+plot(roc_gbm, add = TRUE, col = "red", lty = 2)
+plot(roc_rf, add = TRUE, col = "green", lty = 3)
+
+# Add legend
+legend("bottomright", legend = c("Naive Bayes", "Gradient Boosting", "Random Forest"),
+col = c("blue", "red", "green"), lty = 1:3)
+
+```
+
+
 ```{r}
+# Hyperparameter Optimization for Gradient Boosting Regressor
 
-# Hyperparameter Tuning for the Best GBR Model
-
-# Extract best features and number from the best GBR model
-best_feature_names <- names(gradient_boosting_results$best_model$importance)[1:gradient_boosting_results$best_features]
-best_feature_count <- gradient_boosting_results$best_features
-
-# Create formula with the best features
-formula_best_features <- reformulate(termlabels = best_feature_names, response = "attrition")
-
-# Define the hyperparameter grid for GBR
+# Define the hyperparameter grid
 gbm_grid <- expand.grid(
 n.trees = c(50, 100, 200),
 interaction.depth = c(2, 4, 6),
 shrinkage = c(0.01, 0.1, 0.2),
-n.minobsinnode = c(5, 10, 20)
+n.minobsinnode = c(5, 10, 15)
 )
 
-# Perform hyperparameter tuning
+# Create a trainControl object for repeated cross-validation
+train_control_gbm <- trainControl(
+method = "repeatedcv",
+number = 5,
+repeats = 3,
+classProbs = TRUE,
+summaryFunction = twoClassSummary,
+allowParallel = TRUE
+)
+
+# Extract best features from previous Gradient Boosting run
+best_gbm_features <- gradient_boosting_results$best_features
+train_subset_gbm <- train_balanced[, c(best_gbm_features, "attrition")]
+
+# Train the model with hyperparameter tuning
 set.seed(123)
-tuned_best_model <- train(
-formula_best_features,
-data = train_balanced,
+gbm_tuned <- train(attrition ~ .,
+data = train_subset_gbm,
 method = "gbm",
-trControl = train_control,
+trControl = train_control_gbm,
 tuneGrid = gbm_grid,
 metric = "ROC",
-verbose = FALSE
-)
+verbose = FALSE)
 
-# Print tuning results
-cat("Hyperparameter Tuning for Best GBR Model:\n")
-print(tuned_best_model)
-print(tuned_best_model$bestTune)
+# Print the best tuned model
+print(gbm_tuned)
 
+# Evaluate the tuned GBM model on the test set
+gbm_tuned_pred <- predict(gbm_tuned, newdata = test[, best_gbm_features], type = "prob")
+gbm_tuned_roc <- roc(test$attrition, gbm_tuned_pred[, "Yes"])
+gbm_tuned_auc <- auc(gbm_tuned_roc)
+
+cat("Tuned Gradient Boosting AUC:", gbm_tuned_auc, "\n")
 ```
+
+```{r}
+# Plot ROC Curve for the tuned GBM model
+gbm_tuned_pred <- predict(gbm_tuned, newdata = test[, best_gbm_features], type = "prob")
+gbm_tuned_roc <- roc(test$attrition, gbm_tuned_pred[, "Yes"])
+
+plot(gbm_tuned_roc,
+main = "ROC Curve for Tuned GBM Model",
+col = "blue",
+lwd = 2,
+print.auc = TRUE,
+auc.polygon = TRUE,
+grid = TRUE)
+```
+
+
+
+
+
 
