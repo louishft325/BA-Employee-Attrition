@@ -1,0 +1,267 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: true
+---
+
+# Data Visualization
+
+This document provides an analysis of employee data, focusing on different aspects such as age, work-life-balance, job roles, company size, company reputation, and gender distribution. The visualizations are grouped by the column analyzed.
+
+```{r}
+library(ggplot2)
+test <-read.csv("test.csv", stringsAsFactors = TRUE)
+test
+```
+
+## AGE
+
+Age is an important demographic variable that can provide valuable insights into the workforce's composition, average income across age groups, and attrition trends. The code beneath generates two visualizations related to age: a histogram displaying the **age distribution** and a line chart showing the **average monthly income** across age groups. These visualizations provide insights into the age distribution of the dataset and the average monthly income across different age groups, which can be helpful in identifying any patterns or trends related to age in the dataset.
+
+```{r}
+# Age Distribution (Histogram)
+p1 <- ggplot(test, aes(x = Age)) +
+  geom_histogram(binwidth = 5, fill = "lightblue", color = "black") +
+  labs(title = "Age Distribution", x = "Age", y = "Count") +
+  theme_minimal()
+
+
+# Line Chart for Average Monthly Income Over Age Groups
+age_income <- aggregate(test$Monthly.Income, by = list(test$Age), FUN = mean, na.rm = TRUE)
+colnames(age_income) <- c("Age", "AverageIncome")
+
+p2 <- ggplot(age_income, aes(x = Age, y = AverageIncome)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Average Monthly Income Over Age Groups", x = "Age", y = "Average Monthly Income") +
+  theme_minimal()
+
+
+# Print all plots
+print(p1)
+print(p2)
+
+```
+
+## Work-Life Balance
+
+Beneath, you see two visualizations related to work-life balance: a pie chart displaying the **distribution of work-life balance levels** and a bar chart showing the **work-life balance levels across different job roles**. These visualizations provide insights into the distribution and variation of work-life balance in the data set.
+
+```{r}
+#Pie Chart for Work-Life Balance Distribution
+p4 <- ggplot(test, aes(x = "", fill = as.factor(Work.Life.Balance))) +
+  geom_bar(width = 1) +
+  coord_polar("y") +
+  labs(title = "Work-Life Balance Distribution", fill = "Work-Life Balance") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+
+
+#Work-Life Balance by Job Role (Bar Chart)
+p5 <- ggplot(test, aes(x = Job.Role, fill = as.factor(Work.Life.Balance))) +
+  geom_bar(position = "dodge") +
+  labs(title = "Work-Life Balance by Job Role", x = "Job Role", y = "Count", fill = "Work-Life Balance") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Print all plots
+print(p4)
+print(p5)
+
+```
+
+## Job Role
+
+Job roles can significantly impact various factors such as income, job satisfaction, performance ratings, and tenure. We explore aspects across different job roles, like:
+
+1.  Average Monthly Income by Job Role (Bar Chart)
+
+2.  Job Satisfaction by Job Role (Bar Chart)
+
+3.  Performance Rating by Job Role (Bar Chart)
+
+4.  Company Tenure by Job Role (Box Plot)
+
+5.  Job Role Distribution (Bar Chart)
+
+These visualizations provide insights into various aspects of job roles, such as average monthly income, job satisfaction, performance ratings, company tenure, and the distribution of job roles within the data set.
+
+```{r}
+# Monthly Income by Job Role (Bar Chart)
+p6 <- ggplot(test, aes(x = Job.Role, y = Monthly.Income)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "steelblue") +
+  labs(title = "Average Monthly Income by Job Role", x = "Job Role", y = "Average Monthly Income") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Job Satisfaction by Job Role (Bar Chart)
+p7 <- ggplot(test, aes(x = Job.Role, fill = Job.Satisfaction)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Job Satisfaction by Job Role", x = "Job Role", y = "Count", fill = "Job Satisfaction") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Performance Rating by Job Role (Bar Chart)
+p8 <- ggplot(test, aes(x = Job.Role, fill = Performance.Rating)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Performance Rating by Job Role", x = "Job Role", y = "Count", fill = "Performance Rating") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Company Tenure by Job Role (Box Plot)
+p9 <- ggplot(test, aes(x = Job.Role, y = Company.Tenure)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Company Tenure by Job Role", x = "Job Role", y = "Company Tenure (Years)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Job Role Distribution (Bar Chart)
+p10 <- ggplot(test, aes(x = Job.Role)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Job Role Distribution", x = "Job Role", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Print all plots
+print(p6)
+print(p7)
+print(p8)
+print(p9)
+print(p10)
+
+
+```
+
+## Company Size
+
+Company size can influence various organizational aspects, including employee experience and company policies. This section visualizes the distribution of company size. Beneath, you can see one visualization related to company size, which displays the **distribution of company sizes** within the data set.
+
+```{r}
+# Company Size Distribution (Bar Chart)
+p11 <- ggplot(test, aes(x = Company.Size)) +
+  geom_bar(fill = "lightcoral") +
+  labs(title = "Company Size Distribution", x = "Company Size", y = "Count") +
+  theme_minimal()
+
+
+# Print all plots
+print(p11)
+```
+
+## Company Reputation
+
+Company reputation is a critical factor that can affect employee satisfaction and retention. We visualize the distribution of company reputation ratings. We have displayed one visualization related to company reputation, which displays the **distribution of company reputations** within the data set.
+
+```{r}
+# Company Reputation Distribution (Bar Chart)
+p12 <- ggplot(test, aes(x = Company.Reputation)) +
+  geom_bar(fill = "lightblue") +
+  labs(title = "Company Reputation Distribution", x = "Company Reputation", y = "Count") +
+  theme_minimal()
+
+
+# Print all plots
+print(p12)
+
+```
+
+## Gender
+
+In this part, we have provided one visualization related to gender, which displays the **distribution of gender** within the data set using a pie chart.
+
+```{r}
+# Pie Chart for Gender Distribution 
+p13 <- ggplot(test, aes(x = "", fill = as.factor(Gender))) +
+  geom_bar(width = 1) +
+  coord_polar("y") +
+  labs(title = "Gender Distribution", fill = "Gender") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+
+
+# Print all plots
+print(p13)
+
+```
+
+## Attrition
+
+Beneath, we can see several visualizations related to attrition:
+
+1.  Attrition Distribution (Bar Chart)
+
+2.  Age Distribution by Attrition (Density Plot)
+
+3.  Attrition by Job Role (Bar Chart)
+
+4.  Monthly Income by Attrition (Box Plot)
+
+5.  Attrition by Gender (Bar Chart)
+
+6.  Attrition by Job Satisfaction (Bar Chart)
+
+These visualizations provide insights into various aspects related to attrition, including its distribution, relationship with age, job role, monthly income, gender, and job satisfaction.
+
+```{r}
+# 1. Attrition Distribution 
+p14 <- ggplot(test, aes(x = as.factor(Attrition))) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Attrition Distribution", x = "Attrition", y = "Count") +
+  theme_minimal()
+
+# 2. Attrition by Age
+p15 <- ggplot(test, aes(x = Age, fill = Attrition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Age Distribution by Attrition", x = "Age", y = "Density") +
+  theme_minimal()
+
+# 3. Attrition by Job Role
+p16 <- ggplot(test, aes(x = Job.Role, fill = Attrition)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Attrition by Job Role", x = "Job Role", y = "Count", fill = "Attrition") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 4. Attrition by Monthly Income
+p17 <- ggplot(test, aes(x = Attrition, y = Monthly.Income, fill = Attrition)) +
+  geom_boxplot() +
+  labs(title = "Monthly Income by Attrition", x = "Attrition", y = "Monthly Income") +
+  theme_minimal()
+
+# 6. Attrition by Gender
+p18 <- ggplot(test, aes(x = Gender, fill = Attrition)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Attrition by Gender", x = "Gender", y = "Count", fill = "Attrition") +
+  theme_minimal()
+
+# 9. Attrition by Job Satisfaction
+p19 <- ggplot(test, aes(x = as.factor(Job.Satisfaction), fill = Attrition)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Attrition by Job Satisfaction", x = "Job Satisfaction", y = "Count", fill = "Attrition") +
+  theme_minimal()
+
+# Print all plots
+print(p14)
+print(p15)
+print(p16)
+print(p17)
+print(p18)
+print(p19)
+
+```
