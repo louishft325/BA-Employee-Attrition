@@ -233,12 +233,13 @@ correlation_df <- as.data.frame(as.table(correlation_matrix))
 correlation_df$Var1 <- as.character(correlation_df$Var1)
 correlation_df$Var2 <- as.character(correlation_df$Var2)
 
+
 # Filter out self-correlations and duplicate pairs
-correlation_df <- correlation_df %>% 
-  filter(Var1 != Var2) %>% 
-  mutate(pair = pmin(Var1, Var2) %>% paste(pmax(Var1, Var2), sep = "-")) %>% 
-  distinct(pair, .keep_all = TRUE) %>% 
-  select(-pair) %>%
+correlation_df <- correlation_df %>%
+  filter(Var1 != Var2) %>%
+  mutate(pair = pmin(Var1, Var2) %>% paste(pmax(Var1, Var2), sep = "-")) %>%
+  distinct(pair, .keep_all = TRUE) %>%
+  select(-pair)
 
 
 # Top 10 positive correlations
