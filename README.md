@@ -1,6 +1,7 @@
 # BA-Employee-Attrition
 
-**Link to DataSet:** https://www.kaggle.com/datasets/stealthtechnologies/employee-attrition-dataset/data?select=train.csv
+**Link to DataSet:** 
+https://www.kaggle.com/datasets/stealthtechnologies/employee-attrition-dataset/data?select=train.csv
 ---
 About Dataset:
 The Synthetic Employee Attrition Dataset is a simulated dataset designed for the analysis and prediction of employee attrition. It contains detailed information about various aspects of an employee's profile, including demographics, job-related features, and personal circumstances.
@@ -9,4 +10,4 @@ The dataset comprises 74,498 samples, split into training and testing sets to fa
 
 This dataset is ideal for HR analytics, machine learning model development, and demonstrating advanced data analysis techniques. It provides a comprehensive and realistic view of the factors affecting employee retention, making it a valuable resource for researchers and practitioners in the field of human resources and organizational development.
 
-Mandatory Research Questions: ??
+Mandatory Research Questions: What group of employees is more prone to attrition, and what strategies can organizations implement to address attrition within these groups
