@@ -1,14 +1,12 @@
 ---
-title: "Students-Perfomance E-Business"
+title: "Attrition Data Analysis"
 output:
   pdf_document: default
   html_document:
     keep_md: true
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+This is our Analysis Notebook.
 
 ```{r}
 
@@ -41,9 +39,9 @@ train <- read_csv("data/train.csv")
 test <- read_csv("data/test.csv")
 
 
-# Sample 10% of the train dataset
-set.seed(123) # Setting a seed for reproducibility
-train <- train %>% sample_frac(0.05)
+# # Sample 10% of the train dataset
+# set.seed(123) # Setting a seed for reproducibility
+# train <- train %>% sample_frac(0.05)
 
 # Display the first few rows of the train dataset
 head(train)
@@ -154,6 +152,7 @@ str(train)
 str(test)
 
 ```
+
 ```{r}
 # Normalize numerical features
 num_cols <- train %>% select(where(is.numeric), -attrition) %>% colnames()
@@ -184,7 +183,7 @@ table(train$attrition)
 rec <- recipe(attrition ~ ., data = train) %>%
   step_smote(attrition)
 
-train_balanced = train #TODO: ROMOVE 
+train_balanced = train #TODO: REPLACE
 # train_balanced <- prep(rec, training = train) %>% bake(new_data = NULL)
 
 # Display summary of balanced data
@@ -207,34 +206,6 @@ str(test)
 
 ```
 
-# Check multicollinearity using Variance Inflation Factor (VIF) #TODO: Output of features to remove (and manual removal??)
-```{r}
-library(car)
-library(dplyr) 
-# Check multicollinearity using Variance Inflation Factor (VIF)
-# Ensure all predictor variables are numeric
-train_balanced <- train_balanced %>%
-  mutate(across(where(is.factor), as.numeric))
-
-# Select only numeric columns for VIF calculation
-num_vars <- train_balanced %>% select(where(is.numeric)) %>% colnames()
-
-# Calculate VIF for each numeric feature
-vif_values <- vif(lm(attrition ~ ., data = train_balanced))
-
-# Print VIF values
-print(vif_values)
-
-# Remove features with VIF greater than a threshold (e.g., 5 or 10)
-high_vif <- names(vif_values[vif_values > 5])
-train_balanced <- train_balanced %>% select(-all_of(high_vif))
-test <- test %>% select(-all_of(high_vif))
-
-# Display structure after removing high VIF features
-str(train_balanced)
-str(test)
-
-```
 
 
 ```{r}
@@ -274,8 +245,8 @@ library(e1071)
 train_balanced$attrition <- as.factor(train_balanced$attrition)
 test$attrition <- as.factor(test$attrition)
 
-# Register parallel backend
-registerDoParallel(detectCores())
+# # Register parallel backend
+# registerDoParallel(detectCores())
 
 # Define control for cross-validation
 train_control <- trainControl(
@@ -385,8 +356,8 @@ cat("\nBest model based on AUC is:", best_model_name, "\n")
 # Save the best model
 saveRDS(best_model, paste0("best_model_", best_model_name, ".rds"))
 
-# --- Stop Parallel Processing ---
-stopCluster(cl)
+# # --- Stop Parallel Processing ---
+# stopCluster(cl)
 
 ```
 
@@ -427,7 +398,7 @@ allowParallel = TRUE)
 # Function to find best features, train model, and plot feature importance
 feature_select_train_evaluate_plot <- function(model_method, model_name, rfe_control_functions) {
 
-feature_range <- seq(3, 3, by = 1)
+feature_range <- seq(3, 19, by = 2)
 best_feature_size <- NULL
 max_auc <- 0
 
@@ -516,7 +487,6 @@ library(pROC)
 
 # Get predicted probabilities for the best models on the test set
 prob_nb <- predict(naive_bayes_results$best_model, newdata = test[, naive_bayes_results$best_features], type = "prob")[, "Yes"]
-# prob_nb <- predict(gradient_boosting_results$best_model, newdata = test[, gradient_boosting_results$best_features], type = "prob")[, "Yes"]
 prob_gbm <- predict(gradient_boosting_results$best_model, newdata = test[, gradient_boosting_results$best_features], type = "prob")[, "Yes"]
 prob_rf <- predict(random_forest_results$best_model, newdata = test[, random_forest_results$best_features], type = "prob")[, "Yes"]
 
@@ -597,6 +567,52 @@ auc.polygon = TRUE,
 grid = TRUE)
 ```
 
+
+```{r}
+# Function to predict attrition for a new data point
+predict_attrition <- function(model, features) {
+# Create a data frame from the input features
+new_data <- data.frame(t(features))
+
+# Make the prediction using the trained model
+prediction <- predict(model, new_data, type = "prob")[, "Yes"]
+
+# Return the predicted probability of attrition
+return(prediction)
+}
+
+# Example usage:
+# Define the features for the new data point, MAKE SURE TO USE THE SAME ORDER AS IN YOUR TRAINING DATA
+new_data_features <- c(
+age = 0.5,
+gender = 1,
+years_at_company = 2,
+job_role = 3,
+monthly_income = 4,
+work_life_balance = 3,
+job_satisfaction = 2,
+performance_rating = 4,
+number_of_promotions = 1,
+overtime = 1,
+distance_from_home = 5,
+education_level = 3,
+marital_status = 2,
+number_of_dependents = 1,
+job_level = 2,
+company_size = 3,
+company_tenure = 6,
+remote_work = 0,
+innovation_opportunities = 4,
+company_reputation = 4,
+employee_recognition = 0.8
+)
+
+# Predict attrition using the tuned GBM model
+predicted_attrition <- predict_attrition(gbm_tuned, new_data_features)
+
+# Print the predicted probability
+cat("Predicted probability of attrition:", predicted_attrition)
+```
 
 
 
